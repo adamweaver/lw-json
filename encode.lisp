@@ -1,10 +1,5 @@
 (in-package :json)
 
-(define-condition json-encode-error (error)
-  ((what :initarg :what :reader what)
-   (argument :initarg :argument :reader argument :initform nil))
-  (:report (lambda (condition stream) (format stream "JSON encode error: ~A~@[: ~S~]" (what condition) (argument condition)))))
-
 (defconstant +whitespace+
   '(#\Space #\Newline #\Return #\Linefeed #\Tab)
   "List of whitespace characters")
