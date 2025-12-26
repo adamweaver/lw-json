@@ -2,7 +2,7 @@
 
 (require "parsergen")
 
-(define-lw-system json ()
+(define-lw-system lw-json ()
   (:system "date")
   (:file "package")
   (:file "encode" :depends-on "package")
