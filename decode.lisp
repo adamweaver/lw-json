@@ -5,7 +5,10 @@
    (argument :initarg :argument :reader argument :initform nil))
   (:report (lambda (condition stream) (format stream "JSON parse error: ~A~@[: ~S~]" (what condition) (argument condition)))))
 
-(defun decode (string)
+(defvar *ef* nil
+  "External format to decode \u____ characters from")
+
+(defun decode (string &key (external-format :utf-8))
   "Turns a JSON string into a lisp object.
 {} objects are turned into EQUAL hash-tables :- {\"a\": 3} === #{equal \"a\" 3}
 [] arrays are turned into vectors :- [1, 2, 3] == #(1 2 3)
@@ -15,19 +18,22 @@ null becomes NIL.
 
 In multiple value strings, only the first value is returned:
 [1, 2, 3], [4, 5, 6] === #(1 2 3) ; The #(4 5 6) is not read"
-  (cond ((stringp string) (decode/parse (lex/string string)))
-        ((pathnamep string) (decode/parse (lex/string (hcl:file-string string :external-format '(:utf-8 :eol-style :lf)))))
-        (t nil)))
+  (let ((*ef* external-format))
+    (cond ((stringp string) (decode/parse (lex/string string)))
+          ((pathnamep string) (decode/parse (lex/string (hcl:file-string string :external-format '(:utf-8 :eol-style :lf)))))
+          (t nil))))
 
 (defun lex/decode-string (string i eos)
   (declare (optimize (speed 3) (safety 0) (debug 0)) (type string string) (type fixnum i eos))
   (cons (with-output-to-string (output)
           (loop with escape = nil
+                with nums = nil
                 for j from i below eos
                 for c = (char string j)
                 if (and escape (char= c #\u))
-                  do (write-char (code-char (or (parse-integer string :start (1+ j) :end (+ j 5) :junk-allowed t :radix 16) 0)) output)
-                     (setf escape nil j (+ j 4))
+                  do (setf nums (cons (or (parse-integer string :start (1+ j) :end (+ j 5) :junk-allowed t :radix 16) 0) nums)
+                           escape nil
+                           j (+ j 4))
                 else
                   if escape
                     do (write-char (or (cdr (assoc c +string-escapes-alist+ :test #'char=)) #\?) output) (setf escape nil)
@@ -38,7 +44,10 @@ In multiple value strings, only the first value is returned:
                   if (char= c #\")
                     do (loop-finish)
                 else
-                  do (write-char c output)
+                  do (when nums
+                       (write-string (ef:decode-external-string (coerce (nreverse nums) 'vector) *ef*) output)
+                       (setf nums nil))
+                     (write-char c output)
                 finally (setf i j)))
         i))
 

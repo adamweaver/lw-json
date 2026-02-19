@@ -14,7 +14,7 @@ hood, because reasons.
 ## API 
 
 ``` common-lisp
-  (JSON:DECODE "string-or-pathname")
+  (JSON:DECODE "string-or-pathname" &key EXTERNAL-FORMAT)
 ```
 
 ``` common-lisp
